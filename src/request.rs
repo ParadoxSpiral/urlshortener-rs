@@ -32,27 +32,36 @@ pub struct Request {
 #[cfg(feature = "client")]
 impl Request {
     pub fn execute(&self, client: &Client) -> Option<Response> {
-        let mut builder = match self.method {
+        let builder = match self.method {
             Method::Get => client.get(&self.url),
             Method::Post => client.post(&self.url),
         };
 
-        if let Some(agent) = self.user_agent.clone() {
-            builder.header(header::UserAgent::new(agent.0));
-        }
+        let builder = if let Some(agent) = self.user_agent.clone() {
+            builder.header(header::USER_AGENT, agent.0)
+        } else {
+            builder
+        };
 
-        if let Some(content_type) = self.content_type.clone() {
+        let builder = if let Some(content_type) = self.content_type.clone() {
             match content_type {
-                ContentType::Json => builder.header(header::ContentType::json()),
-                ContentType::FormUrlEncoded => {
-                    builder.header(header::ContentType::form_url_encoded())
+                ContentType::Json => {
+                    builder.header(header::CONTENT_TYPE, String::from("application/json"))
                 }
-            };
-        }
+                ContentType::FormUrlEncoded => builder.header(
+                    header::CONTENT_TYPE,
+                    String::from("application/www-form-url-encoded"),
+                ),
+            }
+        } else {
+            builder
+        };
 
-        if let Some(body) = self.body.clone() {
-            builder.body(body);
-        }
+        let builder = if let Some(body) = self.body.clone() {
+            builder.body(body)
+        } else {
+            builder
+        };
 
         builder.send().ok()
     }
